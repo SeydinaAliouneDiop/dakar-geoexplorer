@@ -1,4 +1,3 @@
-
 import { Router, Request, Response } from 'express';
 import pool from '../db';
 
@@ -12,7 +11,6 @@ router.get('/', async (req: Request, res: Response) => {
     let params: string[];
 
     if (type && typeof type === 'string') {
-      
       query = `
         SELECT
           id,
@@ -27,7 +25,6 @@ router.get('/', async (req: Request, res: Response) => {
       `;
       params = [type];
     } else {
-      
       query = `
         SELECT
           id,
@@ -62,8 +59,8 @@ router.get('/', async (req: Request, res: Response) => {
     res.json(geojson);
 
   } catch (err: any) {
-    console.error('Erreur GET /api/lieux:', err.message);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Erreur GET /api/lieux:', err);
+    res.status(500).json({ error: 'Erreur serveur', detail: err.message });
   }
 });
 
@@ -74,6 +71,7 @@ router.get('/search', async (req: Request, res: Response) => {
     if (!q || typeof q !== 'string' || q.trim().length < 2) {
       return res.status(400).json({ error: 'Paramètre q requis (minimum 2 caractères)' });
     }
+
     const query = `
       SELECT
         id,
@@ -110,8 +108,8 @@ router.get('/search', async (req: Request, res: Response) => {
     res.json(geojson);
 
   } catch (err: any) {
-    console.error('Erreur GET /api/lieux/search:', err.message);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Erreur GET /api/lieux/search:', err);
+    res.status(500).json({ error: 'Erreur serveur', detail: err.message });
   }
 });
 
@@ -125,13 +123,12 @@ router.get('/proches', async (req: Request, res: Response) => {
 
     const longitude = parseFloat(lng as string);
     const latitude  = parseFloat(lat as string);
-    const k         = Math.min(parseInt(limit as string) || 5, 20); // max 20
+    const k         = Math.min(parseInt(limit as string) || 5, 20);
 
     if (isNaN(longitude) || isNaN(latitude)) {
       return res.status(400).json({ error: 'lng et lat doivent être des nombres' });
     }
 
-    
     let query: string;
     let params: (number | string)[];
 
@@ -199,8 +196,8 @@ router.get('/proches', async (req: Request, res: Response) => {
     res.json(geojson);
 
   } catch (err: any) {
-    console.error('Erreur GET /api/lieux/proches:', err.message);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Erreur GET /api/lieux/proches:', err);
+    res.status(500).json({ error: 'Erreur serveur', detail: err.message });
   }
 });
 

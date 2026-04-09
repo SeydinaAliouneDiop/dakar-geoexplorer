@@ -1,4 +1,3 @@
-
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
 
@@ -10,8 +9,12 @@ const pool = new Pool({
   database: process.env.DB_NAME     || 'dakar_geo',
   user:     process.env.DB_USER     || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
-  max: 10,           
+  max: 10,
   idleTimeoutMillis: 30000,
+  // ✅ AJOUT SSL obligatoire pour Render
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : false,
 });
 
 pool.connect((err, client, release) => {

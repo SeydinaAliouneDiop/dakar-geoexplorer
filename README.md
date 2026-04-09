@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🗺 Dakar GeoExplorer
 
 > Application web de cartographie interactive de Dakar — PostGIS + MapLibre GL JS
@@ -226,3 +227,6 @@ LIMIT 5;
 ---
 
 *Projet réalisé dans le cadre du BTS Géomatique — CEDT G15, Dakar, Sénégal*
+=======
+# dakar-geoexplorer
+>>>>>>> 165ffb1b77e7b318afd8d9a8bc67db75ae8b2d3a

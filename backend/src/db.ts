@@ -11,7 +11,7 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || 'postgres',
   max: 10,
   idleTimeoutMillis: 30000,
-  // ✅ AJOUT SSL obligatoire pour Render
+  
   ssl: process.env.NODE_ENV === 'production'
     ? { rejectUnauthorized: false }
     : false,

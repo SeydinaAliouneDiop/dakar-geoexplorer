@@ -3,7 +3,6 @@ import pool from '../db';
 
 const router = Router();
 
-// GET /api/lieux
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { type } = req.query;
@@ -14,9 +13,13 @@ router.get('/', async (req: Request, res: Response) => {
     if (type && typeof type === 'string') {
       query = `
         SELECT
-          id, nom, type, description, adresse,
+          id,
+          nom,
+          type,
+          description,
+          adresse,
           ST_AsGeoJSON(geom)::json AS geometry
-        FROM public.lieux
+        FROM lieux
         WHERE type = $1
         ORDER BY nom;
       `;
@@ -24,9 +27,13 @@ router.get('/', async (req: Request, res: Response) => {
     } else {
       query = `
         SELECT
-          id, nom, type, description, adresse,
+          id,
+          nom,
+          type,
+          description,
+          adresse,
           ST_AsGeoJSON(geom)::json AS geometry
-        FROM public.lieux
+        FROM lieux
         ORDER BY nom;
       `;
       params = [];
@@ -40,11 +47,11 @@ router.get('/', async (req: Request, res: Response) => {
         type: 'Feature',
         geometry: row.geometry,
         properties: {
-          id: row.id,
-          nom: row.nom,
-          type: row.type,
+          id:          row.id,
+          nom:         row.nom,
+          type:        row.type,
           description: row.description,
-          adresse: row.adresse,
+          adresse:     row.adresse,
         },
       })),
     };
@@ -57,20 +64,24 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/lieux/search
 router.get('/search', async (req: Request, res: Response) => {
   try {
     const { q } = req.query;
+
     if (!q || typeof q !== 'string' || q.trim().length < 2) {
       return res.status(400).json({ error: 'Paramètre q requis (minimum 2 caractères)' });
     }
 
     const query = `
       SELECT
-        id, nom, type, description, adresse,
+        id,
+        nom,
+        type,
+        description,
+        adresse,
         ST_AsGeoJSON(geom)::json AS geometry,
         ts_rank(to_tsvector('french', nom), plainto_tsquery('french', $1)) AS rank
-      FROM public.lieux
+      FROM lieux
       WHERE to_tsvector('french', nom) @@ plainto_tsquery('french', $1)
       ORDER BY rank DESC
       LIMIT 10;
@@ -84,12 +95,12 @@ router.get('/search', async (req: Request, res: Response) => {
         type: 'Feature',
         geometry: row.geometry,
         properties: {
-          id: row.id,
-          nom: row.nom,
-          type: row.type,
+          id:          row.id,
+          nom:         row.nom,
+          type:        row.type,
           description: row.description,
-          adresse: row.adresse,
-          score: parseFloat(row.rank).toFixed(4),
+          adresse:     row.adresse,
+          score:       parseFloat(row.rank).toFixed(4),
         },
       })),
     };
@@ -102,10 +113,10 @@ router.get('/search', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/lieux/proches
 router.get('/proches', async (req: Request, res: Response) => {
   try {
     const { lng, lat, limit, type } = req.query;
+
     if (!lng || !lat) {
       return res.status(400).json({ error: 'Paramètres lng et lat requis' });
     }
@@ -124,7 +135,11 @@ router.get('/proches', async (req: Request, res: Response) => {
     if (type && typeof type === 'string') {
       query = `
         SELECT
-          id, nom, type, description, adresse,
+          id,
+          nom,
+          type,
+          description,
+          adresse,
           ST_AsGeoJSON(geom)::json AS geometry,
           ROUND(
             ST_Distance(
@@ -132,7 +147,7 @@ router.get('/proches', async (req: Request, res: Response) => {
               ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
             )::numeric, 0
           ) AS distance_m
-        FROM public.lieux
+        FROM lieux
         WHERE type = $3
         ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
         LIMIT $4;
@@ -141,7 +156,11 @@ router.get('/proches', async (req: Request, res: Response) => {
     } else {
       query = `
         SELECT
-          id, nom, type, description, adresse,
+          id,
+          nom,
+          type,
+          description,
+          adresse,
           ST_AsGeoJSON(geom)::json AS geometry,
           ROUND(
             ST_Distance(
@@ -149,7 +168,7 @@ router.get('/proches', async (req: Request, res: Response) => {
               ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
             )::numeric, 0
           ) AS distance_m
-        FROM public.lieux
+        FROM lieux
         ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
         LIMIT $3;
       `;
@@ -164,12 +183,12 @@ router.get('/proches', async (req: Request, res: Response) => {
         type: 'Feature',
         geometry: row.geometry,
         properties: {
-          id: row.id,
-          nom: row.nom,
-          type: row.type,
+          id:          row.id,
+          nom:         row.nom,
+          type:        row.type,
           description: row.description,
-          adresse: row.adresse,
-          distance_m: row.distance_m,
+          adresse:     row.adresse,
+          distance_m:  row.distance_m,
         },
       })),
     };

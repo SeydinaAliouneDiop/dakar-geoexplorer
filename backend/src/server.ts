@@ -20,5 +20,5 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur port ${PORT}`);
+  console.log(` Serveur démarré sur port ${PORT}`);
 });

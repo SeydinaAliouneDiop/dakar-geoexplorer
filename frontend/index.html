@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dakar GeoExplorer</title>
 
- 
   <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 
   <style>
-    
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -26,13 +24,13 @@
       --shadow:   0 4px 24px rgba(0,0,0,0.5);
     }
 
-    html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 
-    
-    #app    { display: flex; height: 100vh; }
-    #map    { flex: 1; }
+    /* ── Layout principal ── */
+    #app { display: flex; height: 100vh; position: relative; }
+    #map { flex: 1; }
 
-    
+    /* ── Sidebar desktop ── */
     #sidebar {
       width: 320px;
       background: var(--surface);
@@ -41,11 +39,15 @@
       flex-direction: column;
       overflow: hidden;
       z-index: 10;
+      transition: transform 0.3s ease;
     }
 
     #sidebar-header {
       padding: 20px 18px 14px;
       border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
     }
 
     #sidebar-header h1 {
@@ -56,12 +58,21 @@
       margin-bottom: 2px;
     }
 
-    #sidebar-header p {
-      font-size: 11px;
+    #sidebar-header p { font-size: 11px; color: var(--muted); }
+
+    /* Bouton fermer (mobile uniquement) */
+    #btn-close-sidebar {
+      display: none;
+      background: none;
+      border: none;
       color: var(--muted);
+      font-size: 22px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      flex-shrink: 0;
     }
 
-    
     #search-box {
       padding: 14px 18px 10px;
       border-bottom: 1px solid var(--border);
@@ -82,7 +93,6 @@
     #search-input:focus { border-color: var(--accent); }
     #search-input::placeholder { color: var(--muted); }
 
-    
     #filters {
       padding: 10px 18px;
       border-bottom: 1px solid var(--border);
@@ -105,7 +115,6 @@
     .filter-btn:hover  { border-color: var(--accent); color: var(--accent); }
     .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
 
-    
     #btn-proches {
       margin: 10px 18px;
       padding: 9px;
@@ -122,7 +131,6 @@
     #btn-proches:hover   { opacity: 0.85; }
     #btn-proches:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    
     #results {
       flex: 1;
       overflow-y: auto;
@@ -158,7 +166,6 @@
     .result-dist { font-size: 11px; color: var(--accent2); font-weight: 600; }
     .result-addr { font-size: 11px; color: var(--muted); margin-top: 3px; }
 
-    
     .type-hôpital   { background: #ff4f6a22; color: #ff4f6a; }
     .type-école     { background: #0094ff22; color: #0094ff; }
     .type-marché    { background: #ffab0022; color: #ffab00; }
@@ -166,7 +173,6 @@
     .type-pharmacie { background: #bd5fff22; color: #bd5fff; }
     .type-culture   { background: #ff7a0022; color: #ff7a00; }
 
-   
     #status {
       padding: 8px 18px;
       font-size: 11px;
@@ -174,7 +180,36 @@
       border-top: 1px solid var(--border);
     }
 
-    
+    /* ── Bouton hamburger (mobile) ── */
+    #btn-menu {
+      display: none;
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 20;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 20px;
+      width: 42px;
+      height: 42px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Overlay sombre derrière la sidebar (mobile) ── */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 15;
+    }
+
+    /* ── Popups MapLibre ── */
     .maplibregl-popup-content {
       background: var(--surface) !important;
       color: var(--text) !important;
@@ -192,7 +227,6 @@
     .popup-addr { font-size: 11px; color: var(--muted); font-style: italic; }
     .popup-dist { font-size: 12px; color: var(--accent2); font-weight: 600; margin-top: 6px; }
 
-   
     .empty-state {
       padding: 40px 18px;
       text-align: center;
@@ -211,23 +245,82 @@
       border-radius: 6px;
       z-index: 5;
     }
+
+    /* ══════════════════════════════
+       RESPONSIVE MOBILE (≤ 768px)
+    ══════════════════════════════ */
+    @media (max-width: 768px) {
+
+      /* La carte prend tout l'écran */
+      #app { flex-direction: column; }
+      #map { width: 100%; height: 100vh; }
+
+      /* Sidebar cachée hors écran à gauche */
+      #sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 300px;
+        max-width: 85vw;
+        z-index: 20;
+        transform: translateX(-100%);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.6);
+      }
+
+      /* Sidebar visible quand .open */
+      #sidebar.open {
+        transform: translateX(0);
+      }
+
+      /* Overlay visible quand .open */
+      #overlay.open {
+        display: block;
+      }
+
+      /* Bouton hamburger visible */
+      #btn-menu {
+        display: flex;
+      }
+
+      /* Bouton fermer visible dans la sidebar */
+      #btn-close-sidebar {
+        display: block;
+      }
+
+      /* Crédit en bas à gauche pour ne pas gêner */
+      #credit {
+        bottom: 8px;
+        right: 8px;
+        font-size: 9px;
+      }
+    }
   </style>
 </head>
 <body>
+
+<!-- Overlay sombre -->
+<div id="overlay"></div>
+
+<!-- Bouton hamburger -->
+<button id="btn-menu" aria-label="Ouvrir le menu">☰</button>
 
 <div id="app">
 
   <div id="sidebar">
     <div id="sidebar-header">
-      <h1>🗺 Dakar GeoExplorer</h1>
-      <p>Explore les lieux de Dakar · PostGIS + MapLibre</p>
+      <div>
+        <h1>🗺 Dakar GeoExplorer</h1>
+        <p>Explore les lieux de Dakar · PostGIS + MapLibre</p>
+      </div>
+      <button id="btn-close-sidebar" aria-label="Fermer">✕</button>
     </div>
 
     <div id="search-box">
       <input
         id="search-input"
         type="text"
-        placeholder="Rechercher un lieu... (ex: hôpital, marché)"
+        placeholder="Rechercher un lieu..."
         autocomplete="off"
       />
     </div>
@@ -253,7 +346,6 @@
     <div id="status">— lieux chargés</div>
   </div>
 
-  <!-- ── Carte ── -->
   <div id="map"></div>
 </div>
 
@@ -263,7 +355,6 @@
 
 <script>
 const API_BASE = 'https://dakar-geoexplorer.onrender.com/api';
-
 
 const TYPE_COLORS = {
   'hôpital':   '#ff4f6a',
@@ -283,14 +374,40 @@ const TYPE_ICONS = {
   'culture':   '🎨',
 };
 
-let currentType   = '';         
-let userLng       = null;       
-let userLat       = null;
-let activePopup   = null;       
-let allFeatures   = [];         
+let currentType = '';
+let userLng = null;
+let userLat = null;
+let activePopup = null;
+let allFeatures = [];
+
+// ── Hamburger menu ──
+const sidebar   = document.getElementById('sidebar');
+const overlay   = document.getElementById('overlay');
+const btnMenu   = document.getElementById('btn-menu');
+const btnClose  = document.getElementById('btn-close-sidebar');
+
+function openSidebar() {
+  sidebar.classList.add('open');
+  overlay.classList.add('open');
+}
+
+function closeSidebar() {
+  sidebar.classList.remove('open');
+  overlay.classList.remove('open');
+}
+
+btnMenu.addEventListener('click', openSidebar);
+btnClose.addEventListener('click', closeSidebar);
+overlay.addEventListener('click', closeSidebar);
+
+// Fermer la sidebar après un clic sur un résultat (mobile)
+function closeSidebarOnMobile() {
+  if (window.innerWidth <= 768) closeSidebar();
+}
+
+// ── Carte ──
 const map = new maplibregl.Map({
   container: 'map',
-  
   style: {
     version: 8,
     sources: {
@@ -301,19 +418,14 @@ const map = new maplibregl.Map({
         attribution: '© OpenStreetMap contributors',
       },
     },
-    layers: [{
-      id: 'osm-tiles',
-      type: 'raster',
-      source: 'osm',
-    }],
+    layers: [{ id: 'osm-tiles', type: 'raster', source: 'osm' }],
   },
-  center:  [-17.4677, 14.7167],  // Centre de Dakar
+  center:  [-17.4677, 14.7167],
   zoom:    12,
   minZoom: 10,
   maxZoom: 18,
 });
 
-// Contrôles de navigation
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
 let markers = [];
@@ -330,30 +442,23 @@ function createMarkerElement(feature) {
 
   const el = document.createElement('div');
   el.style.cssText = `
-    width: 32px;
-    height: 32px;
+    width: 32px; height: 32px;
     border-radius: 50%;
     background: ${color}22;
     border: 2px solid ${color};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; cursor: pointer;
     transition: transform 0.15s;
   `;
   el.textContent = icon;
   el.title = feature.properties.nom;
-
   el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.25)'; });
   el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
-
   return el;
 }
 
 function showPopup(feature, lngLat) {
   if (activePopup) activePopup.remove();
-
   const p    = feature.properties;
   const dist = p.distance_m ? `<div class="popup-dist">📏 ${p.distance_m} m</div>` : '';
   const type = p.type || '';
@@ -378,11 +483,9 @@ function addMarkersToMap(geojson) {
   geojson.features.forEach(feature => {
     const [lng, lat] = feature.geometry.coordinates;
     const el = createMarkerElement(feature);
-
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([lng, lat])
       .addTo(map);
-
     el.addEventListener('click', () => showPopup(feature, [lng, lat]));
     markers.push(marker);
   });
@@ -414,13 +517,13 @@ function renderList(features) {
     `;
   }).join('');
 
-  
   resultsEl.querySelectorAll('.result-item').forEach((el, i) => {
     el.addEventListener('click', () => {
       const lng = parseFloat(el.dataset.lng);
       const lat = parseFloat(el.dataset.lat);
       map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
       showPopup(features[i], [lng, lat]);
+      closeSidebarOnMobile(); // ← ferme le menu sur mobile après sélection
     });
   });
 }
@@ -437,7 +540,6 @@ async function loadLieux(type = '') {
     addMarkersToMap(data);
     renderList(data.features);
 
-    // Ajuster la vue pour afficher tous les marqueurs
     if (data.features.length > 0) {
       const lngs = data.features.map(f => f.geometry.coordinates[0]);
       const lats = data.features.map(f => f.geometry.coordinates[1]);
@@ -450,7 +552,7 @@ async function loadLieux(type = '') {
   } catch (err) {
     console.error('Erreur loadLieux:', err);
     document.getElementById('results').innerHTML =
-      '<div class="empty-state">❌ Impossible de charger les données.<br>Le serveur tourne sur localhost:3000 ?</div>';
+      '<div class="empty-state">❌ Impossible de charger les données.</div>';
   }
 }
 
@@ -459,26 +561,17 @@ let searchTimeout = null;
 document.getElementById('search-input').addEventListener('input', function () {
   clearTimeout(searchTimeout);
   const q = this.value.trim();
-
   if (q.length < 2) {
-    // Revenir à la liste normale si la recherche est effacée
     if (q.length === 0) loadLieux(currentType);
     return;
   }
-
- 
   searchTimeout = setTimeout(async () => {
     try {
-      const url  = `${API_BASE}/lieux/search?q=${encodeURIComponent(q)}`;
-      const res  = await fetch(url);
+      const res  = await fetch(`${API_BASE}/lieux/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-
       addMarkersToMap(data);
       renderList(data.features);
-
-    } catch (err) {
-      console.error('Erreur search:', err);
-    }
+    } catch (err) { console.error('Erreur search:', err); }
   }, 400);
 });
 
@@ -491,8 +584,8 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     loadLieux(currentType);
   });
 });
-const btnProches = document.getElementById('btn-proches');
 
+const btnProches = document.getElementById('btn-proches');
 
 if ('geolocation' in navigator) {
   navigator.geolocation.getCurrentPosition(
@@ -502,7 +595,6 @@ if ('geolocation' in navigator) {
       btnProches.disabled = false;
       btnProches.textContent = '📍 Lieux proches de moi';
 
-      
       const userEl = document.createElement('div');
       userEl.style.cssText = `
         width: 16px; height: 16px;
@@ -511,39 +603,26 @@ if ('geolocation' in navigator) {
         border: 3px solid #fff;
         box-shadow: 0 0 0 3px #0094ff55;
       `;
-
-      new maplibregl.Marker({ element: userEl })
-        .setLngLat([userLng, userLat])
-        .addTo(map);
+      new maplibregl.Marker({ element: userEl }).setLngLat([userLng, userLat]).addTo(map);
     },
-    () => {
-      btnProches.textContent = '📍 Position non disponible';
-    }
+    () => { btnProches.textContent = '📍 Position non disponible'; }
   );
 }
 
 btnProches.addEventListener('click', async () => {
   if (!userLng || !userLat) return;
-
   try {
     const typeParam = currentType ? `&type=${encodeURIComponent(currentType)}` : '';
-    const url = `${API_BASE}/lieux/proches?lng=${userLng}&lat=${userLat}&limit=8${typeParam}`;
-    const res  = await fetch(url);
+    const res  = await fetch(`${API_BASE}/lieux/proches?lng=${userLng}&lat=${userLat}&limit=8${typeParam}`);
     const data = await res.json();
-
     addMarkersToMap(data);
     renderList(data.features);
-
     map.flyTo({ center: [userLng, userLat], zoom: 14, duration: 1000 });
-
-  } catch (err) {
-    console.error('Erreur proches:', err);
-  }
+    closeSidebarOnMobile();
+  } catch (err) { console.error('Erreur proches:', err); }
 });
 
-map.on('load', () => {
-  loadLieux();
-});
+map.on('load', () => { loadLieux(); });
 </script>
 </body>
 </html>

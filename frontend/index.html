@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dakar GeoExplorer</title>
+
+ 
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+  <style>
+    
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1923;
+      --surface:  #182231;
+      --border:   #2a3a50;
+      --accent:   #00c896;
+      --accent2:  #0094ff;
+      --text:     #e8edf5;
+      --muted:    #7a8fa8;
+      --danger:   #ff4f6a;
+      --radius:   10px;
+      --shadow:   0 4px 24px rgba(0,0,0,0.5);
+    }
+
+    html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+    
+    #app    { display: flex; height: 100vh; }
+    #map    { flex: 1; }
+
+    
+    #sidebar {
+      width: 320px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    #sidebar-header {
+      padding: 20px 18px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #sidebar-header h1 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    #sidebar-header p {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    
+    #search-box {
+      padding: 14px 18px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #search-input {
+      width: 100%;
+      padding: 9px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #search-input:focus { border-color: var(--accent); }
+    #search-input::placeholder { color: var(--muted); }
+
+    
+    #filters {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .filter-btn {
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover  { border-color: var(--accent); color: var(--accent); }
+    .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+
+    
+    #btn-proches {
+      margin: 10px 18px;
+      padding: 9px;
+      background: var(--accent2);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    #btn-proches:hover   { opacity: 0.85; }
+    #btn-proches:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    
+    #results {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+
+    #results::-webkit-scrollbar { width: 4px; }
+    #results::-webkit-scrollbar-track { background: transparent; }
+    #results::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .result-item {
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+
+    .result-item:hover   { background: rgba(0,200,150,0.06); }
+    .result-item:last-child { border-bottom: none; }
+
+    .result-nom  { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+    .result-meta { display: flex; gap: 8px; align-items: center; }
+
+    .result-type {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .result-dist { font-size: 11px; color: var(--accent2); font-weight: 600; }
+    .result-addr { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    
+    .type-hôpital   { background: #ff4f6a22; color: #ff4f6a; }
+    .type-école     { background: #0094ff22; color: #0094ff; }
+    .type-marché    { background: #ffab0022; color: #ffab00; }
+    .type-mosquée   { background: #00c89622; color: #00c896; }
+    .type-pharmacie { background: #bd5fff22; color: #bd5fff; }
+    .type-culture   { background: #ff7a0022; color: #ff7a00; }
+
+   
+    #status {
+      padding: 8px 18px;
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    
+    .maplibregl-popup-content {
+      background: var(--surface) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius) !important;
+      padding: 14px 16px !important;
+      box-shadow: var(--shadow) !important;
+      min-width: 200px;
+    }
+
+    .maplibregl-popup-tip { border-top-color: var(--surface) !important; }
+
+    .popup-nom  { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--accent); }
+    .popup-desc { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    .popup-addr { font-size: 11px; color: var(--muted); font-style: italic; }
+    .popup-dist { font-size: 12px; color: var(--accent2); font-weight: 600; margin-top: 6px; }
+
+   
+    .empty-state {
+      padding: 40px 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    #credit {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(15,25,35,0.85);
+      color: var(--muted);
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1>🗺 Dakar GeoExplorer</h1>
+      <p>Explore les lieux de Dakar · PostGIS + MapLibre</p>
+    </div>
+
+    <div id="search-box">
+      <input
+        id="search-input"
+        type="text"
+        placeholder="Rechercher un lieu... (ex: hôpital, marché)"
+        autocomplete="off"
+      />
+    </div>
+
+    <div id="filters">
+      <button class="filter-btn active" data-type="">Tous</button>
+      <button class="filter-btn" data-type="hôpital">🏥 Hôpital</button>
+      <button class="filter-btn" data-type="école">🎓 École</button>
+      <button class="filter-btn" data-type="marché">🛒 Marché</button>
+      <button class="filter-btn" data-type="mosquée">🕌 Mosquée</button>
+      <button class="filter-btn" data-type="pharmacie">💊 Pharmacie</button>
+      <button class="filter-btn" data-type="culture">🎨 Culture</button>
+    </div>
+
+    <button id="btn-proches" disabled>
+      📍 Lieux proches de ma position
+    </button>
+
+    <div id="results">
+      <div class="empty-state">Chargement des données…</div>
+    </div>
+
+    <div id="status">— lieux chargés</div>
+  </div>
+
+  <!-- ── Carte ── -->
+  <div id="map"></div>
+</div>
+
+<div id="credit">
+  Seydina Alioune Diop · BTS Géomatique · CEDT G15
+</div>
+
+<script>
+const API_BASE = 'http://localhost:3000/api';
+
+
+const TYPE_COLORS = {
+  'hôpital':   '#ff4f6a',
+  'école':     '#0094ff',
+  'marché':    '#ffab00',
+  'mosquée':   '#00c896',
+  'pharmacie': '#bd5fff',
+  'culture':   '#ff7a00',
+};
+
+const TYPE_ICONS = {
+  'hôpital':   '🏥',
+  'école':     '🎓',
+  'marché':    '🛒',
+  'mosquée':   '🕌',
+  'pharmacie': '💊',
+  'culture':   '🎨',
+};
+
+let currentType   = '';         
+let userLng       = null;       
+let userLat       = null;
+let activePopup   = null;       
+let allFeatures   = [];         
+const map = new maplibregl.Map({
+  container: 'map',
+  
+  style: {
+    version: 8,
+    sources: {
+      osm: {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '© OpenStreetMap contributors',
+      },
+    },
+    layers: [{
+      id: 'osm-tiles',
+      type: 'raster',
+      source: 'osm',
+    }],
+  },
+  center:  [-17.4677, 14.7167],  // Centre de Dakar
+  zoom:    12,
+  minZoom: 10,
+  maxZoom: 18,
+});
+
+// Contrôles de navigation
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+let markers = [];
+
+function clearMarkers() {
+  markers.forEach(m => m.remove());
+  markers = [];
+}
+
+function createMarkerElement(feature) {
+  const type  = feature.properties.type || 'culture';
+  const color = TYPE_COLORS[type] || '#ffffff';
+  const icon  = TYPE_ICONS[type]  || '📍';
+
+  const el = document.createElement('div');
+  el.style.cssText = `
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: ${color}22;
+    border: 2px solid ${color};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.15s;
+  `;
+  el.textContent = icon;
+  el.title = feature.properties.nom;
+
+  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.25)'; });
+  el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
+
+  return el;
+}
+
+function showPopup(feature, lngLat) {
+  if (activePopup) activePopup.remove();
+
+  const p    = feature.properties;
+  const dist = p.distance_m ? `<div class="popup-dist">📏 ${p.distance_m} m</div>` : '';
+  const type = p.type || '';
+  const icon = TYPE_ICONS[type] || '📍';
+
+  activePopup = new maplibregl.Popup({ offset: 20, closeButton: true, maxWidth: '280px' })
+    .setLngLat(lngLat)
+    .setHTML(`
+      <div class="popup-nom">${icon} ${p.nom}</div>
+      <div class="result-type type-${type}" style="display:inline-block;margin-bottom:6px">${type}</div>
+      <div class="popup-desc">${p.description || ''}</div>
+      <div class="popup-addr">${p.adresse || ''}</div>
+      ${dist}
+    `)
+    .addTo(map);
+}
+
+function addMarkersToMap(geojson) {
+  clearMarkers();
+  allFeatures = geojson.features;
+
+  geojson.features.forEach(feature => {
+    const [lng, lat] = feature.geometry.coordinates;
+    const el = createMarkerElement(feature);
+
+    const marker = new maplibregl.Marker({ element: el })
+      .setLngLat([lng, lat])
+      .addTo(map);
+
+    el.addEventListener('click', () => showPopup(feature, [lng, lat]));
+    markers.push(marker);
+  });
+}
+
+function renderList(features) {
+  const resultsEl = document.getElementById('results');
+  const statusEl  = document.getElementById('status');
+
+  statusEl.textContent = `${features.length} lieu${features.length > 1 ? 'x' : ''} affiché${features.length > 1 ? 's' : ''}`;
+
+  if (features.length === 0) {
+    resultsEl.innerHTML = '<div class="empty-state">Aucun lieu trouvé</div>';
+    return;
+  }
+
+  resultsEl.innerHTML = features.map(f => {
+    const p    = f.properties;
+    const dist = p.distance_m ? `<span class="result-dist">📏 ${p.distance_m} m</span>` : '';
+    return `
+      <div class="result-item" data-lng="${f.geometry.coordinates[0]}" data-lat="${f.geometry.coordinates[1]}" data-id="${p.id}">
+        <div class="result-nom">${p.nom}</div>
+        <div class="result-meta">
+          <span class="result-type type-${p.type}">${p.type}</span>
+          ${dist}
+        </div>
+        <div class="result-addr">${p.adresse || ''}</div>
+      </div>
+    `;
+  }).join('');
+
+  
+  resultsEl.querySelectorAll('.result-item').forEach((el, i) => {
+    el.addEventListener('click', () => {
+      const lng = parseFloat(el.dataset.lng);
+      const lat = parseFloat(el.dataset.lat);
+      map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+      showPopup(features[i], [lng, lat]);
+    });
+  });
+}
+
+async function loadLieux(type = '') {
+  try {
+    const url = type
+      ? `${API_BASE}/lieux?type=${encodeURIComponent(type)}`
+      : `${API_BASE}/lieux`;
+
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    addMarkersToMap(data);
+    renderList(data.features);
+
+    // Ajuster la vue pour afficher tous les marqueurs
+    if (data.features.length > 0) {
+      const lngs = data.features.map(f => f.geometry.coordinates[0]);
+      const lats = data.features.map(f => f.geometry.coordinates[1]);
+      map.fitBounds(
+        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+        { padding: 60, maxZoom: 14 }
+      );
+    }
+
+  } catch (err) {
+    console.error('Erreur loadLieux:', err);
+    document.getElementById('results').innerHTML =
+      '<div class="empty-state">❌ Impossible de charger les données.<br>Le serveur tourne sur localhost:3000 ?</div>';
+  }
+}
+
+let searchTimeout = null;
+
+document.getElementById('search-input').addEventListener('input', function () {
+  clearTimeout(searchTimeout);
+  const q = this.value.trim();
+
+  if (q.length < 2) {
+    // Revenir à la liste normale si la recherche est effacée
+    if (q.length === 0) loadLieux(currentType);
+    return;
+  }
+
+ 
+  searchTimeout = setTimeout(async () => {
+    try {
+      const url  = `${API_BASE}/lieux/search?q=${encodeURIComponent(q)}`;
+      const res  = await fetch(url);
+      const data = await res.json();
+
+      addMarkersToMap(data);
+      renderList(data.features);
+
+    } catch (err) {
+      console.error('Erreur search:', err);
+    }
+  }, 400);
+});
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentType = this.dataset.type;
+    document.getElementById('search-input').value = '';
+    loadLieux(currentType);
+  });
+});
+const btnProches = document.getElementById('btn-proches');
+
+
+if ('geolocation' in navigator) {
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      userLng = pos.coords.longitude;
+      userLat = pos.coords.latitude;
+      btnProches.disabled = false;
+      btnProches.textContent = '📍 Lieux proches de moi';
+
+      
+      const userEl = document.createElement('div');
+      userEl.style.cssText = `
+        width: 16px; height: 16px;
+        border-radius: 50%;
+        background: #0094ff;
+        border: 3px solid #fff;
+        box-shadow: 0 0 0 3px #0094ff55;
+      `;
+
+      new maplibregl.Marker({ element: userEl })
+        .setLngLat([userLng, userLat])
+        .addTo(map);
+    },
+    () => {
+      btnProches.textContent = '📍 Position non disponible';
+    }
+  );
+}
+
+btnProches.addEventListener('click', async () => {
+  if (!userLng || !userLat) return;
+
+  try {
+    const typeParam = currentType ? `&type=${encodeURIComponent(currentType)}` : '';
+    const url = `${API_BASE}/lieux/proches?lng=${userLng}&lat=${userLat}&limit=8${typeParam}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    addMarkersToMap(data);
+    renderList(data.features);
+
+    map.flyTo({ center: [userLng, userLat], zoom: 14, duration: 1000 });
+
+  } catch (err) {
+    console.error('Erreur proches:', err);
+  }
+});
+
+map.on('load', () => {
+  loadLieux();
+});
+</script>
+</body>
+</html>
